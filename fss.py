@@ -114,12 +114,8 @@ if __name__ == '__main__':
 
     # Let's do some basic checks on the server definition
 
-    if not 'name' in server_def:
-        print "Server definition missing 'name'"
-        sys.exit(1)
-
     if not 'scripts' in server_def:
-        print "Server definition missing 'scripts'"
+        print "Server definition missing 'scripts'. Won't do anything!"
         sys.exit(1)
 
     if 'files' in server_def and server_def['files'] is not None:
@@ -133,14 +129,13 @@ if __name__ == '__main__':
 
     template_vars = {}
     if '--vars' in args:
-        print args['--vars']
         try:
             template_vars = yaml.load(open(os.getcwd() + '/vars/' + args['--vars']).read())
         except:
             print 'Specified variables file not found: ' + args['--vars']
             sys.exit(1)
 
-    pp(template_vars)
+    #pp(template_vars)
 
     copy_files = []
 
@@ -151,7 +146,8 @@ if __name__ == '__main__':
                 copy_files.append(f)
                 continue
 
-            print "Rendering template {} {} {}".format(f, os.getcwd() + '/' + f, f.replace('.j2', ''))
+            #print "Rendering template {} {} {}".format(f, os.getcwd() + '/' + f, f.replace('.j2', ''))
+            print "Rendering template {}".format(f)
 
             t = Template(open(os.getcwd() + '/' + f).read())
             if not os.path.exists(os.path.dirname('/tmp/pyfss/' + f.replace('.j2', ''))):

@@ -23,4 +23,4 @@ def colored(text, colour=WHITE):
 	if has_colours:
 		return "\x1b[1;%dm" % (colour) + text + "\x1b[0m"
 	else:
-		return text	
+		return text
