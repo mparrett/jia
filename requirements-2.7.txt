@@ -1,0 +1,9 @@
+Jinja2==2.7.3
+MarkupSafe==0.23
+PyYAML==3.11
+docopt==0.6.2
+ecdsa==0.11
+paramiko==1.14.1
+pycrypto==2.6.1
+scp==0.8.0
+wsgiref==0.1.2
