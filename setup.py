@@ -2,6 +2,7 @@
 
 import os
 from setuptools import find_packages, setup
+from jia import __version__
 
 # allow setup.py to be run from any path
 os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
@@ -16,7 +17,7 @@ except ImportError:
 
 setup(
     name='jia',
-    version='0.1',
+    version=__version__,
     description='A simple provisioner for development projects',
     author='Matt Parrett',
     author_email='matt.parrett@gmail.com',
