@@ -1,10 +1,10 @@
 #!/usr/bin/env python -u
 
-"""Fucking Shell Scripts (simple python edition)
+"""jia - Simple Shell Script Provisioner
 
 Usage:
-    fss.py configure (--def=<def>) (--host=<host>) [--port=<port>] [--user=<user>] [--key=<key>] [--pass=<pass>] [--vars=<vars>] [--match=<match>] [-v]
-    fss.py -h|--help
+    jia.py configure (--def=<def>) (--host=<host>) [--port=<port>] [--user=<user>] [--key=<key>] [--pass=<pass>] [--vars=<vars>] [--match=<match>] [-v]
+    jia.py -h|--help
 
 Options:
     -h --help                   Show this screen.
@@ -26,7 +26,7 @@ import time
 import re
 
 from paramiko import SSHClient, AutoAddPolicy, Channel, Transport
-from colors import colored, RED, GREEN, YELLOW
+from textcolor import textcolor, RED, GREEN, YELLOW
 from pprint import pprint as pp
 
 from scp import SCPClient
@@ -39,7 +39,7 @@ ssh.set_missing_host_key_policy(AutoAddPolicy())
 trans = None
 chan = None
 
-args = docopt(__doc__, version='Fucking Shell Scripts (simple python edition)')
+args = docopt(__doc__, version='0.9')
 
 
 def sigint_handler(signum, frame):
@@ -65,31 +65,31 @@ def ssh_command(cmd):
         outlines = stdout.readlines()
 
         if len(outlines) > 0:
-            print colored("SSH<\n" + "".join(outlines), GREEN)
+            print textcolor("SSH<\n" + "".join(outlines), GREEN)
 
         errlines = stderr.readlines()
 
         if len(errlines) > 0:
-            print colored("SSH<\n" + "".join(errlines), RED)
+            print textcolor("SSH<\n" + "".join(errlines), RED)
 
     return [stdin, stdout, stderr]
 
 
 def create_local_archive(filename, files):
-    cmd = "cd /tmp/pyfss && tar -czf {} {}".format(filename, ' '.join(files))
+    cmd = "cd /tmp/jia-py && tar -czf {} {}".format(filename, ' '.join(files))
     return call(cmd, shell=True)
 
 
 def extract_remote_archive(filename):
-    ssh_command("cd /tmp/pyfss && tar xvfm {}".format(filename))
+    ssh_command("cd /tmp/jia-py && tar xvfm {}".format(filename))
 
 
 def cleanup_remote():
-    ssh_command("rm -rf /tmp/pyfss")
+    ssh_command("rm -rf /tmp/jia-py")
 
 
 def cleanup_local():
-    call("rm -rf /tmp/pyfss", shell=True)
+    call("rm -rf /tmp/jia-py", shell=True)
 
 
 if __name__ == '__main__':
@@ -132,7 +132,7 @@ if __name__ == '__main__':
                 sys.exit(1)
 
     # Now the fun part!
-    ret = call('mkdir -p /tmp/pyfss/{files,scripts} >/dev/null 2>&1', shell=True)
+    ret = call('mkdir -p /tmp/jia-py/{files,scripts} >/dev/null 2>&1', shell=True)
 
     template_vars = {}
     if '--vars' in args:
@@ -157,33 +157,33 @@ if __name__ == '__main__':
             print "Rendering template {}".format(f)
 
             t = Template(open(os.getcwd() + '/' + f).read())
-            if not os.path.exists(os.path.dirname('/tmp/pyfss/' + f.replace('.j2', ''))):
-                os.makedirs(os.path.dirname('/tmp/pyfss/' + f.replace('.j2', '')))
-            open('/tmp/pyfss/' + f.replace('.j2', ''), 'w').write(t.render(template_vars))
+            if not os.path.exists(os.path.dirname('/tmp/jia-py/' + f.replace('.j2', ''))):
+                os.makedirs(os.path.dirname('/tmp/jia-py/' + f.replace('.j2', '')))
+            open('/tmp/jia-py/' + f.replace('.j2', ''), 'w').write(t.render(template_vars))
 
             copy_files.append(f.replace('.j2', ''))
 
 
     # Copy everything to /tmp for packaging
-    call("cp -R {files,scripts} /tmp/pyfss", shell=True)
+    call("cp -R {files,scripts} /tmp/jia-py", shell=True)
 
     # Package it up
-    filename = 'pyfss.tar.gz';
+    filename = 'jia-py.tar.gz';
     ret = create_local_archive(filename, server_def['scripts'] + copy_files)
 
     if ret != 0:
         print "Could not create local archive"
         sys.exit(ret)
 
-    ssh_command('mkdir /tmp/pyfss >/dev/null 2>&1')
-    scp.put('/tmp/pyfss/' + filename, '/tmp/pyfss/' + filename)
-    extract_remote_archive('/tmp/pyfss/' + filename)
+    ssh_command('mkdir /tmp/jia-py >/dev/null 2>&1')
+    scp.put('/tmp/jia-py/' + filename, '/tmp/jia-py/' + filename)
+    extract_remote_archive('/tmp/jia-py/' + filename)
 
     # NOW RUN THE SCRIPTS!
 
     for script in server_def['scripts']:
         if not args['--match'] or re.search(args['--match'], script) is not None:
-            ssh_command('DEBIAN_FRONTEND=noninteractive PYFSSTMP=/tmp/pyfss {}'.format('/tmp/pyfss/' + script))
+            ssh_command('DEBIAN_FRONTEND=noninteractive PYFSSTMP=/tmp/jia-py {}'.format('/tmp/jia-py/' + script))
 
     cleanup_remote()
     cleanup_local()
