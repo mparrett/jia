@@ -12,14 +12,13 @@ for uncomplicated development projects.
 
 ## Getting Started
 
-```pip install jia```
+    pip install jia
 
 OR:
  
-```git clone git@github.com:mparrett/jia.git
-cd jia
-python setup.py install
-```
+    git clone git@github.com:mparrett/jia.git
+    cd jia
+    python setup.py install
 
 ## Design Principles
 
