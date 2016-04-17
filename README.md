@@ -7,8 +7,9 @@
 Aims to make server provisioning and setup super fast, simple, and less annoying 
 for uncomplicated development projects.
 
-- Renders templated config files
-- Runs shell scripts on remote hosts via ssh
+- Renders templated config files (jinja2)
+- Copies shell scripts, files, and templates to remote hosts via ssh
+- Runs the scripts
 
 ## Getting Started
 
@@ -27,5 +28,7 @@ OR:
 - Flexible and gets out of the way
 
 -----------
+
+Roughly pronounced like "jah"
 
 Named after 甲骨文 (jiǎgǔwén, Chinese Oracle Bone Script)
