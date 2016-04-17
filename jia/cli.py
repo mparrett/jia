@@ -1,5 +1,4 @@
-#!/usr/bin/env python -u
-
+#!/usr/bin/env python -u 
 """jia - Simple Shell Script Provisioner
 
 Usage:
@@ -11,9 +10,9 @@ Options:
     -v --verbose                Be more verbose.
     --host=<host>               Server host [default: localhost].
     -p --port=<port>            SSH Port [default: 22].
-    -u --user=<user>            SSH User.
+    -u --user=<user>            SSH User [default: vagrant].
     --pass=<pass>               SSH Password.
-    -k --key=<key>              SSH Key.
+    -k --key=<key>              SSH Key [default: ~/.vagrant.d/insecure_private_key].
     --vars=<vars>               YAML file containing template variables.
     --match=<match>             Only run scripts matching specified pattern.
 """
@@ -99,7 +98,7 @@ if __name__ == '__main__':
 
     try:
         # Priority: CLI, environment, Vagrant
-        key_file = args['--key'] or os.getenv('SSH_PRIVATE_KEY') or '~/.vagrant.d/insecure_private_key'
+        key_file = args['--key'] or os.getenv('SSH_PRIVATE_KEY')
 
         if args['--verbose']:
             print "Using key file: {}".format(key_file)
