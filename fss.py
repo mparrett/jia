@@ -41,10 +41,12 @@ chan = None
 
 args = docopt(__doc__, version='Fucking Shell Scripts (simple python edition)')
 
+
 def sigint_handler(signum, frame):
     print "\n"
     print "Bye-bye"
     sys.exit(1)
+
 
 def ssh_command(cmd):
     if args['--verbose']:
@@ -72,18 +74,23 @@ def ssh_command(cmd):
 
     return [stdin, stdout, stderr]
 
+
 def create_local_archive(filename, files):
     cmd = "cd /tmp/pyfss && tar -czf {} {}".format(filename, ' '.join(files))
     return call(cmd, shell=True)
 
+
 def extract_remote_archive(filename):
     ssh_command("cd /tmp/pyfss && tar xvfm {}".format(filename))
+
 
 def cleanup_remote():
     ssh_command("rm -rf /tmp/pyfss")
 
+
 def cleanup_local():
     call("rm -rf /tmp/pyfss", shell=True)
+
 
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, sigint_handler)
