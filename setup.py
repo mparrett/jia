@@ -16,7 +16,7 @@ except ImportError:
 
 setup(
     name='jia',
-    version='0.1',
+    version=__version__,
     description='A simple provisioner for development projects',
     author='Matt Parrett',
     author_email='matt.parrett@gmail.com',
