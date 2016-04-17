@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# Import environment variables
+[ -e ~/.jia ] && source ~/.jia
+
+# Pass original args
+python -m jia.cli $@

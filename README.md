@@ -2,11 +2,31 @@
 
 -----------
 
-Aims to make configuration management fast and less annoying for most of the cases.
+## About
+
+Aims to make server provisioning and setup super fast, simple, and less annoying 
+for uncomplicated development projects.
 
 - Renders templated config files
 - Runs shell scripts on remote hosts via ssh
 
-Inspired by http://fuckingshellscripts.org/ and Ansible.
+## Getting Started
+
+```pip install jia```
+
+OR:
+ 
+```git clone git@github.com:mparrett/jia.git
+cd jia
+python setup.py install
+```
+
+## Design Principles
+
+- As simple as possible
+- Infrastructure as code
+- Flexible and gets out of the way
+
+-----------
 
 Named after 甲骨文 (jiǎgǔwén, Chinese Oracle Bone Script)
