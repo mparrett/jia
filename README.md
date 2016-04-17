@@ -9,4 +9,4 @@ Aims to make configuration management fast and less annoying for most of the cas
 
 Inspired by http://fuckingshellscripts.org/ and Ansible.
 
-Named after 甲骨文 (jiǎgǔwén) - Chinese Oracle Bone Script
+Named after 甲骨文 (jiǎgǔwén, Chinese Oracle Bone Script)
