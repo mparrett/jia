@@ -28,4 +28,6 @@ OR:
 
 -----------
 
+Roughly pronounced like "jah"
+
 Named after 甲骨文 (jiǎgǔwén, Chinese Oracle Bone Script)
