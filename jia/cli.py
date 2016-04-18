@@ -2,13 +2,14 @@
 """jia - Simple Shell Script Provisioner
 
 Usage:
-    jia.py configure <server-def> [options] 
+    jia.py configure <def-dir> [options] 
     jia.py -h|--help
 
 Options:
     -h --help                   Show this screen.
     -v --verbose                Be more verbose.
-    --host=<host>               Server host [default: localhost].
+    --host=<host>               Remote host to run commands on.
+    --def-file=<def-file>       Definition file [default: main.yaml].
     -p --port=<port>            SSH Port [default: 22].
     -u --user=<user>            SSH User [default: vagrant].
     --pass=<pass>               SSH Password.
@@ -18,6 +19,7 @@ Options:
 """
 
 import os
+import stat
 import sys
 import yaml
 import signal
@@ -77,7 +79,12 @@ def ssh_command(cmd):
 
 
 def create_local_archive(filename, files):
-    cmd = "cd /tmp/jia-py && tar -czf {} {}".format(filename, ' '.join(files))
+    if args['--verbose']:
+        tar_opts = '-czvf'
+    else:
+        tar_opts = '-cvf'
+
+    cmd = "cd /tmp/jia-py && tar {} {} {}".format(tar_opts, filename, ' '.join(files))
     return call(cmd, shell=True)
 
 
@@ -93,41 +100,54 @@ def cleanup_local():
     call("rm -rf /tmp/jia-py", shell=True)
 
 
+def ssh_connect():
+    # Priority: CLI, environment, Vagrant
+    key_file = args['--key'] or os.getenv('SSH_PRIVATE_KEY')
+
+    if args['--verbose']:
+        print "Using key file: {}".format(key_file)
+        print "Connecting to {}:{}".format(args['--host'], args['--port'])
+
+    key_file = os.path.expanduser(key_file)
+    if not os.path.isfile(key_file):
+        print "Error: Private key file does not exist: {}".format(key_file)
+        sys.exit(1)
+
+    ssh.connect(args['--host'], int(args['--port']), args['--user'], key_filename=key_file, timeout=5)
+
+
 if __name__ == '__main__':
+
     signal.signal(signal.SIGINT, sigint_handler)
 
+    server_def_dir = args['<def-dir>']
+
+    if not os.path.isdir(server_def_dir):
+        print 'Error: Def dir needs to be a directory'
+        sys.exit(1)
+
+    def_file_path = server_def_dir + '/' + args['--def-file']
+    if not os.path.isfile(def_file_path):
+        print 'Error: Definition file ' + def_file_path + ' does not exist'
+        sys.exit(1)
+
     try:
-        # Priority: CLI, environment, Vagrant
-        key_file = args['--key'] or os.getenv('SSH_PRIVATE_KEY')
+        definition = open(def_file_path).read()
+    except:
+        print "Couldn't read def file: {}".format(def_file_path)
+        sys.exit(1)
 
-        if args['--verbose']:
-            print "Using key file: {}".format(key_file)
-            print "Connecting to {}:{}".format(args['--host'], args['--port'])
-
-        key_file = os.path.expanduser(key_file)
-        if not os.path.isfile(key_file):
-            print "Error: Private key file does not exist: {}".format(key_file)
+    if args['--host']:
+        try:
+            ssh_connect()
+        except Exception as e:
+            print "Error: Couldn't establish connection to {}:{}\n{}".format(args['--host'], args['--port'], e)
             sys.exit(1)
 
-        ssh.connect(args['--host'], int(args['--port']), args['--user'], key_filename=key_file, timeout=5)
+        trans = ssh.get_transport()
+        chan = trans.open_channel('session')
 
-    except Exception as e:
-        print "Error: Couldn't establish connection to {}:{}".format(args['--host'], args['--port'])
-        print e
-        sys.exit(1)
-
-    trans = ssh.get_transport()
-    chan = trans.open_channel('session')
-
-    sys.exit(0)
-
-    try:
-        definition = open(os.getcwd() + '/actions/' + args['server-def']).read()
-    except:
-        print "Definition not found: " + args['server-def']
-        sys.exit(1)
-
-    scp = SCPClient(ssh.get_transport())
+        scp = SCPClient(ssh.get_transport())
 
     server_def = yaml.load(definition)
 
@@ -136,69 +156,111 @@ if __name__ == '__main__':
     if not 'scripts' in server_def:
         print "WARNING: Server definition missing 'scripts'. Won't run anything!"
 
+    all_files_and_scripts = (
+            ['files/' + f for f in server_def['files']] + 
+            ['scripts/' + f for f in server_def['scripts']]
+    )
+
     if 'files' in server_def and server_def['files'] is not None:
-        for f in (server_def['files'] + server_def['scripts']):
-            if not os.path.isfile(os.getcwd() + '/' + f):
+        for f in all_files_and_scripts:
+            if not os.path.isfile(server_def_dir + '/' + f):
                 print "Error: File or script not found: " + os.getcwd() + '/' + f
                 sys.exit(1)
 
-    # Now the fun part!
+    # Now the fun part: Build the package!
+
     ret = call('mkdir -p /tmp/jia-py/{files,scripts} >/dev/null 2>&1', shell=True)
 
     template_vars = {}
-    if '--vars' in args:
-        try:
-            template_vars = yaml.load(open(os.getcwd() + '/vars/' + args['--vars']).read())
-        except:
-            print 'Error: Variables file not found: ' + args['--vars']
+
+    if server_def['vars']:
+        template_vars = server_def['vars']
+    pp(template_vars)
+
+    # possibly override
+    if '--vars' in args and args['--vars']:
+        yaml_file = os.getcwd() + '/vars/' + args['--vars']
+        if not os.path.isfile(yaml_file):
+            print 'Error: Variables file not found: {}'.format(args['--vars'])
             sys.exit(1)
 
-    #pp(template_vars)
+        try:
+            template_vars_override = yaml.load(open(yaml_file).read())
+            template_vars.update(template_vars_override)
+        except:
+            print 'Error: Failed parsing YAML: {}'.format(args['--vars'])
+            sys.exit(1)
+
+    pp(template_vars)
 
     copy_files = []
+
 
     # Expand templates
     if 'files' in server_def and server_def['files'] is not None:
         for f in server_def['files']:
             if not f.endswith('.j2'):
-                copy_files.append(f)
+                copy_files.append('files/' + f)
                 continue
 
-            if args['--verbose--']:
+            if args['--verbose']:
                 #print "Rendering template {} {} {}".format(f, os.getcwd() + '/' + f, f.replace('.j2', ''))
                 print "Rendering template {}".format(f)
 
-            t = Template(open(os.getcwd() + '/' + f).read())
-            if not os.path.exists(os.path.dirname('/tmp/jia-py/' + f.replace('.j2', ''))):
-                os.makedirs(os.path.dirname('/tmp/jia-py/' + f.replace('.j2', '')))
+            t = Template(open(server_def_dir + '/files/' + f).read())
 
-            open('/tmp/jia-py/' + f.replace('.j2', ''), 'w').write(t.render(template_vars))
+            template_file_dir = os.path.dirname('/tmp/jia-py/' + f.replace('.j2', ''))
 
-            copy_files.append(f.replace('.j2', ''))
+            if not os.path.exists(template_file_dir):
+                os.makedirs(template_file_dir)
+
+            open('/tmp/jia-py/files/' + f.replace('.j2', ''), 'w').write(t.render(template_vars))
+
+            copy_files.append('files/' + f.replace('.j2', ''))
 
 
     # Copy everything to /tmp for packaging
-    call("cp -R {files,scripts} /tmp/jia-py", shell=True)
+    call("cp -Rv " + server_def_dir + "/ /tmp/jia-py/", shell=True)
 
-    # Package it up
+    cmds = []
+    for script in server_def['scripts']:
+        if not args['--match'] or re.search(args['--match'], script) is not None:
+            cmd = ''
+            if args['--host']:
+                cmd = 'DEBIAN_FRONTEND=noninteractive PYFSSTMP=/tmp/jia-py '
+            cmd = cmd + '{}'.format('/tmp/jia-py/' + script)
+            cmds.append(cmd)
+
+    with open('/tmp/jia-py/configure.sh', 'w') as f:
+        f.write("#!/bin/bash\n")
+        f.write("DEBIAN_FRONTEND=noninteractive\n")
+        f.write("PYFSSTMP=/tmp/jia-py\n")
+        f.write("\n# commands:\n")
+        f.write("".join(cmds) + "\n")
+
+    os.chmod('/tmp/jia-py/configure.sh', 0744)
+
+    # Package everything up
     filename = 'jia-py.tar.gz';
-    ret = create_local_archive(filename, server_def['scripts'] + copy_files)
+    all_files = ['scripts/' + f for f in server_def['scripts']] + copy_files
+    ret = create_local_archive(filename, all_files)
 
     if ret != 0:
         print "Error: Could not create local archive"
         sys.exit(ret)
 
-    ssh_command('mkdir /tmp/jia-py >/dev/null 2>&1')
-    scp.put('/tmp/jia-py/' + filename, '/tmp/jia-py/' + filename)
-    extract_remote_archive('/tmp/jia-py/' + filename)
+    if args['--host']:
+        ssh_command('mkdir /tmp/jia-py >/dev/null 2>&1')
+        scp.put('/tmp/jia-py/' + filename, '/tmp/jia-py/' + filename)
+        extract_remote_archive('/tmp/jia-py/' + filename)
+        # Now run the scripts
+        for cmd in cmds:
+                ssh_command(cmd)
 
-    # Now run the scripts
-
-    for script in server_def['scripts']:
-        if not args['--match'] or re.search(args['--match'], script) is not None:
-            ssh_command('DEBIAN_FRONTEND=noninteractive PYFSSTMP=/tmp/jia-py {}'.format('/tmp/jia-py/' + script))
-
-    cleanup_remote()
-    cleanup_local()
+        cleanup_remote()
+        cleanup_local()
+    else:
+        if args['--verbose']:
+            print "Creating local archive only"
 
     sys.exit(0)
